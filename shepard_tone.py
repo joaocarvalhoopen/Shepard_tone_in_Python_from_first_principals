@@ -62,12 +62,28 @@ BOTTOM = 'BOTTOM'
 TWELVE_ROOT_OF_2 = math.pow(2, 1.0 / 12)
 
 
-def cos_oscillator(sample_rate, freq, time_of_each_note, amplitude):
+def synchronize_time_with_lower_wav_period(sample_rate, time):
+    base_note  = "A3"
+    # note_index = 0  # C3
+    note_index = 12  # C4
+    freq_lower = freq_for_note(base_note, note_index)
+    period_lower = 1.0 / freq_lower
+    # Synchronization...
+    num_cycles   = int(time / period_lower)
+    new_time     = num_cycles * period_lower
+    return new_time
+
+
+def sin_oscillator(sample_rate, freq, time_of_each_note, amplitude):
+    # Synchronization    
+    time_of_each_note = synchronize_time_with_lower_wav_period(sample_rate, time_of_each_note)
+    
     last_step = int(sample_rate * time_of_each_note)
     increment = (2 * math.pi * freq) / sample_rate
     buf_list = []
     for i in range(0, last_step):
-        val = math.cos(increment * i) * amplitude
+        # val = math.cos(increment * i) * amplitude
+        val = math.sin(increment * i) * amplitude
         if i < 50:
             val = val * (1.0 / 50) * i
         elif i > (last_step - 50):
@@ -198,7 +214,7 @@ def gen_notes_sequence(sample_rate, base_note, time, direction=UP, attenuated=Fa
                 offset = 0
 
     wave_buf = []
-    for i in note_range:
+    for i in note_range:   
         note_index = i
         if attenuated:
             amplitude = calc_log_attenuation(abs(offset - amplitude_step * i))
@@ -211,7 +227,7 @@ def gen_notes_sequence(sample_rate, base_note, time, direction=UP, attenuated=Fa
             note_time /= 2
         print("i:", i, "amplitude_step * i:", amplitude_step * i, 'amplitude:', amplitude, " note_time:", note_time, " freq:", freq)
         
-        buf = cos_oscillator(sample_rate, freq, note_time, amplitude )
+        buf = sin_oscillator(sample_rate, freq, note_time, amplitude )
         wave_buf.extend(buf)
     return wave_buf
 
@@ -285,11 +301,13 @@ def main_glissando():
     destinationWavFilename = "sound_sheppard_tone_glissando.wav"
     writeArrayToWavFilename(signal_array, sample_rate, destinationWavFilename)
 
-
 def main_individual_notes():
     sample_rate          = 44100
     wav_duration         = 12.0 # 12.0
     time_each_repetition = 4.0 # seconds
+
+    # time_each_repetition = synchronize_time_with_lower_wav_period(sample_rate, time_each_repetition / 2.0) * 2
+
     direction            = UP
     values = shepard_tone(sample_rate, time_each_repetition, direction)
 
@@ -306,7 +324,45 @@ def main_individual_notes():
     writeArrayToWavFilename(signal_array, sample_rate, destinationWavFilename)
 
 
+def main_test():
+    sample_rate          = 44100
+    time_each_repetition = 4.0 # seconds
+    direction            = UP
+    values = shepard_tone(sample_rate, time_each_repetition, direction)
+
+    time_of_each_note = 1.0 # Second
+
+    base_note = "A3"
+    note_index = 12  # C4
+    freq = freq_for_note(base_note, note_index)
+    amplitude = 1.0
+    values_lower = sin_oscillator(sample_rate, freq, time_of_each_note, amplitude)
+
+    signal_array = np.array(values_lower)
+    destinationWavFilename = "sound_sheppard_freq_lower_base_A3_at_C3.wav"
+    writeArrayToWavFilename(signal_array, sample_rate, destinationWavFilename)
+
+    base_note = "A4"
+    note_index = 12  # C4
+    freq = freq_for_note(base_note, note_index)
+    amplitude = 1.0
+    values_medium = sin_oscillator(sample_rate, freq, time_of_each_note, amplitude)
+
+    signal_array = np.array(values_medium)
+    destinationWavFilename = "sound_sheppard_freq_lower_base_A4_at_C3.wav"
+    writeArrayToWavFilename(signal_array, sample_rate, destinationWavFilename)
+
+    values_both = []
+    for i in range(0, len(values_lower)):
+        values_both.append((values_lower[i] + values_medium[i]) / 2.0)
+
+    signal_array = np.array(values_both)
+    destinationWavFilename = "sound_sheppard_freq_both_C3.wav"
+    writeArrayToWavFilename(signal_array, sample_rate, destinationWavFilename)
+
+
 if __name__ == "__main__":
     main_individual_notes()
     # main_glissando()    
 
+    # main_test()
